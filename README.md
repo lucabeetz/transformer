@@ -2,8 +2,7 @@
 Minimal GPT-2 implementation
 
 ### To do
-* Load weights from HuggingFace
-* Add inference code
+* Add different models, like gpt2-xl
 
 ### Links
 * [Andrej Karpathy's Min-GPT](https://github.com/karpathy/minGPT)
