@@ -9,13 +9,13 @@ if __name__ == '__main__':
 
     text = sys.argv[1]
 
-    model = GPT2.from_pretrained()
+    model = GPT2.from_pretrained(model_type='gpt2-xl')
     model.eval()
 
     tokenizer = BPETokenizer()
 
     encoded = tokenizer.encode(text)
-    preds = model.generate(encoded, max_new_tokens=25, top_k=10)
+    preds = model.generate(encoded, max_new_tokens=40, top_k=10)
     out = tokenizer.decode(preds[0])
 
     print(out)

@@ -16,11 +16,25 @@ class GPT2Config(NamedTuple):
     resid_drop: float = 0.1
     emb_drop: float = 0.1
 
+    @classmethod
+    def from_model_type(cls, model_type: str):
+        assert model_type in ['gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl']
+
+        model_configs = {
+            'gpt2': dict(n_layer=12, n_heads=12, emb_dim=768),
+            'gpt2-medium': dict(n_layer=24, n_heads=16, emb_dim=1024),
+            'gpt2-large': dict(n_layer=36, n_heads=20, emb_dim=1280),
+            'gpt2-xl': dict(n_layer=48, n_heads=25, emb_dim=1600),
+        }
+
+        config = GPT2Config(**model_configs[model_type])
+        return config
+
 
 class GPT2(nn.Module):
     """A decoder-only Transformer like GPT-2"""
 
-    def __init__(self, config: GPT2Config):
+    def __init__(self, config: GPT2Config, model_type='gpt2'):
         super().__init__()
 
         self.config = config
@@ -55,6 +69,10 @@ class GPT2(nn.Module):
         # Final linear layer for token prediction
         self.lm_head = nn.Linear(config.emb_dim, config.vocab_size, bias=False)
 
+        # Parameter count
+        num_params = sum(p.numel() for p in self.transformer.parameters())
+        print(f'Model: {model_type}, number of parameters: {num_params / 1e6:.2f}M')
+
     def forward(self, token_ids):
         B, S = token_ids.shape
         pos_idx = torch.arange(0, S).unsqueeze(0)  # (1, S)
@@ -74,16 +92,16 @@ class GPT2(nn.Module):
         return logits
 
     @classmethod
-    def from_pretrained(cls):
+    def from_pretrained(cls, model_type='gpt2'):
         from transformers import GPT2LMHeadModel
 
         # Create GPT-2 model
-        config = GPT2Config()
-        model = GPT2(config)
+        config = GPT2Config.from_model_type(model_type)
+        model = GPT2(config, model_type=model_type)
         sd = model.state_dict()
 
         # Get HF GPT-2 model
-        model_hf = GPT2LMHeadModel.from_pretrained('gpt2')
+        model_hf = GPT2LMHeadModel.from_pretrained(model_type)
         sd_hf = model_hf.state_dict()
 
         # Weights to ignore
