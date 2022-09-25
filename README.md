@@ -1,7 +1,7 @@
 # transformer
 Minimal GPT-2 implementation with byte-pair encoder.
 
-Supports pretrained weights from HuggingFace for `gpt2`, `gpt2-medium`, `gpt2-large`, `gpt2-xl`
+Supports pretrained weights from HuggingFace for `gpt2`, `gpt2-medium`, `gpt2-large`, `gpt2-xl`.
 
 ### Usage
 
