@@ -194,6 +194,9 @@ class BPETokenizer():
         out = torch.tensor(idx, dtype=torch.long)
         return out
 
+    def encode(self, text):
+        return self(text)
+
     def decode(self, idx):
         text = self.encoder.decode(idx.tolist())
         return text

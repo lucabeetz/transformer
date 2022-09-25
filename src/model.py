@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from typing import NamedTuple
 from torch.nn import functional as F
-from bpe import BPETokenizer
 
 
 class GPT2Config(NamedTuple):
@@ -212,21 +211,3 @@ class MultiHeadAttention(nn.Module):
         out = self.resid_drop(out)
 
         return out
-
-
-if __name__ == '__main__':
-    # Get tokenizer
-    tokenizer = BPETokenizer()
-
-    # Get pretrained model
-    config = GPT2Config()
-    model = GPT2.from_pretrained()
-
-    text = 'Who wrote the book the origin of species?'
-
-    # Encode input sequence
-    enc_seq = tokenizer(text)
-
-    pred_seq = model.generate(enc_seq, 100)
-
-    print(tokenizer.decode(pred_seq[0]))
