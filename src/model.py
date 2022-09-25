@@ -1,7 +1,9 @@
-from typing import NamedTuple
+import math
 import torch
 import torch.nn as nn
-import torch.functional as F
+from typing import NamedTuple
+from torch.nn import functional as F
+from bpe import BPETokenizer
 
 
 class GPT2Config(NamedTuple):
@@ -21,6 +23,8 @@ class GPT2(nn.Module):
 
     def __init__(self, config: GPT2Config):
         super().__init__()
+
+        self.config = config
 
         # Calculate head dimension
         self.head_dim = config.emb_dim // config.n_heads
@@ -100,6 +104,24 @@ class GPT2(nn.Module):
 
         return model
 
+    @torch.no_grad()
+    def generate(self, idx, max_new_tokens, temp=1.0):
+        for _ in range(max_new_tokens):
+            # Truncate sequence to block_size
+            idx_trunc = idx if idx.size(1) <= self.config.block_size else idx[:, -self.block_size:]
+
+            # Get logits
+            logits = self(idx_trunc)
+
+            logits = logits[:, -1, :] / temp
+
+            probs = F.softmax(logits, dim=-1)
+            idx_next = torch.multinomial(probs, num_samples=1)
+
+            idx = torch.cat([idx, idx_next], dim=1)
+
+        return idx
+
 
 class TransformerBlock(nn.Module):
     """A single Transformer block with MHA and MLP"""
@@ -167,12 +189,12 @@ class MultiHeadAttention(nn.Module):
         k = k.view(N, S, self.n_heads, self.head_dim).transpose(1, 2)  # (N, H, S, D)
         v = v.view(N, S, self.n_heads, self.head_dim).transpose(1, 2)  # (N, H, S, D)
 
-        # Calculate scaled dot product attention
+        # Calculate scaled dot product attention (scaled by head dimension)
         attn = q @ k.transpose(2, 3)  # (N, H, S, S)
-        attn = attn * (1. / torch.sqrt(self.head_dim))
+        attn = attn * (1. / math.sqrt(k.size(-1)))
 
         # Causual attention
-        attn = attn.masked_fill_(self.attn_mask == 0, float('-inf'))
+        attn = attn.masked_fill_(self.bias[:, :, :S, :S] == 0, float('-inf'))
         attn_scores = F.softmax(attn, dim=-1)  # (N, H, S, S)
         attn_scores = self.attn_drop(attn_scores)
 
@@ -181,7 +203,7 @@ class MultiHeadAttention(nn.Module):
 
         # Concatenate heads
         out = out.transpose(1, 2)  # (N, S, H, D)
-        out = out.view(N, S, E)  # (N, S, E)
+        out = out.contiguous().view(N, S, E)  # (N, S, E)
 
         # Output projection
         out = self.c_proj(out)  # (N, S, E)
@@ -193,5 +215,18 @@ class MultiHeadAttention(nn.Module):
 
 
 if __name__ == '__main__':
+    # Get tokenizer
+    tokenizer = BPETokenizer()
+
+    # Get pretrained model
     config = GPT2Config()
     model = GPT2.from_pretrained()
+
+    text = 'Who wrote the book the origin of species?'
+
+    # Encode input sequence
+    enc_seq = tokenizer(text)
+
+    pred_seq = model.generate(enc_seq, 100)
+
+    print(tokenizer.decode(pred_seq[0]))
