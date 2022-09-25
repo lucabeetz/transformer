@@ -104,7 +104,7 @@ class GPT2(nn.Module):
         return model
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens, temp=1.0):
+    def generate(self, idx, max_new_tokens, temp=1.0, top_k=None):
         for _ in range(max_new_tokens):
             # Truncate sequence to block_size
             idx_trunc = idx if idx.size(1) <= self.config.block_size else idx[:, -self.block_size:]
@@ -112,9 +112,16 @@ class GPT2(nn.Module):
             # Get logits
             logits = self(idx_trunc)
 
+            # Create probability distribution over next token
             logits = logits[:, -1, :] / temp
 
+            # Only consider top_k options
+            if top_k is not None:
+                prob_thresh = torch.topk(logits, top_k).values.min()
+                logits[logits < prob_thresh] = float('-inf')
+
             probs = F.softmax(logits, dim=-1)
+
             idx_next = torch.multinomial(probs, num_samples=1)
 
             idx = torch.cat([idx, idx_next], dim=1)
